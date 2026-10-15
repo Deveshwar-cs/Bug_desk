@@ -3,6 +3,7 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {authClient} from "../lib/auth-client";
+import {useEffect} from "react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +11,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const {data: session, isPending} = authClient.useSession();
+  useEffect(() => {
+    if (session) {
+      router.replace("/");
+    }
+  }, [session, router]);
+
+  if (isPending || session) {
+    return <p className="p-6">Checking session...</p>;
+  }
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

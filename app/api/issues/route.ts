@@ -1,6 +1,7 @@
 import {getSession} from "@/app/lib/auth-session";
 import {prisma} from "@/app/lib/prisma";
 import {NextResponse} from "next/server";
+import {issueQueue} from "@/app/lib/jobs/issue-queue";
 
 export async function GET() {
   try {
@@ -17,8 +18,8 @@ export async function GET() {
     }
 
     const issues = await prisma.issue.findMany({
-      orderBy: {
-        createdAt: "desc",
+      where: {
+        userId: session.user.id,
       },
     });
 
@@ -55,7 +56,6 @@ export async function POST(request: Request) {
       );
     }
     const body: unknown = await request.json();
-
     if (
       typeof body !== "object" ||
       body === null ||
@@ -71,20 +71,37 @@ export async function POST(request: Request) {
         {status: 400},
       );
     }
-
     const title = body.title.trim();
     const description =
       "description" in body && typeof body.description === "string"
         ? body.description.trim() || null
         : null;
-
     const issue = await prisma.issue.create({
       data: {
         title,
         description,
+        user: {
+          connect: {id: session.user.id},
+        },
       },
     });
 
+    const job = await issueQueue.add(
+      "issue-created",
+      {
+        issueId: issue.id,
+        title: issue.title,
+        userId: session.user.id,
+      },
+      {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 1000,
+        },
+      },
+    );
+    console.log("Queued job ID:", job.id);
     return NextResponse.json(
       {
         success: true,

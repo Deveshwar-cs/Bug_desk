@@ -1,7 +1,8 @@
 "use client";
 
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {authClient} from "../lib/auth-client";
+import {useRouter} from "next/navigation";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -9,7 +10,18 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const {data: session, isPending} = authClient.useSession();
+  const router = useRouter();
 
+  useEffect(() => {
+    if (session) {
+      router.replace("/");
+    }
+  }, [session, router]);
+
+  if (isPending || session) {
+    return <p className="p-6">Checking session...</p>;
+  }
   async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
